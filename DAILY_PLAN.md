@@ -39,26 +39,41 @@
 
 **今天只使用：** Python、FastAPI、Pydantic、Uvicorn、一个 LLM SDK、python-dotenv。
 
-今天的最小文件结构如下，由你手动创建：
+当前项目目录结构如下；其中 `db`、`rag`、`services` 和 `frontend` 中的部分文件暂为空，Day 2 先集中处理规划接口：
 
 ```text
 项目根目录/
 ├── DAILY_PLAN.md
-├── backend/
-│   ├── __init__.py
-│   ├── app.py
-│   ├── schemas.py
-│   └── planner.py
-├── .env
+├── Readme.md
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
-└── README.md
+├── data/
+├── backend/
+│   └── app/
+│       ├── main.py
+│       ├── config.py
+│       ├── llm.py
+│       ├── schemas.py
+│       ├── db/
+│       │   ├── models.py
+│       │   └── session.py
+│       ├── rag/
+│       │   ├── loader.py
+│       │   └── retriever.py
+│       └── services/
+│           ├── planner.py
+│           ├── progress.py
+│           └── tutor.py
+└── frontend/
+    └── streamlit_app.py
 ```
+
+本地运行时需要自行创建 `.env`，但不要提交；`Readme.md` 当前为空，后续补充启动和接口说明。
 
 #### 1. 确认环境并创建虚拟环境（20～30 分钟）
 
-在项目根目录的 PowerShell 中执行。当前工作区根目录为 `D:\pro\agent`，直接在这里开发即可。
+在项目根目录 `D:\pro\Study-Mate` 的 PowerShell 中执行。
 
 ```powershell
 python --version
@@ -107,7 +122,7 @@ __pycache__/
 
 #### 3. 定义输入与输出（20～30 分钟）
 
-在 `backend/schemas.py` 中用 Pydantic 定义三个模型：
+在 `backend/app/schemas.py` 中用 Pydantic 定义三个模型：
 
 | 模型 | 字段 | 用途 |
 |---|---|---|
@@ -133,7 +148,7 @@ __pycache__/
 
 #### 4. 编写 Planner（40～60 分钟）
 
-在 `backend/planner.py` 中完成 `generate_plan(request)`：
+在 `backend/app/services/planner.py` 中完成 `generate_plan(request)`：
 
 1. 读取环境变量，初始化所用 LLM 客户端。
 2. 把用户目标、时间和基础写入 Prompt。
@@ -151,7 +166,7 @@ __pycache__/
 
 #### 5. 编写 FastAPI 接口（20～30 分钟）
 
-在 `backend/app.py` 中创建应用，并完成：
+在 `backend/app/main.py` 中创建应用，并完成：
 
 - `GET /health`：返回 `{"status": "ok"}`。
 - `POST /plan`：接收 `PlanRequest`，调用 Planner，返回 `StudyPlan`。
@@ -161,11 +176,11 @@ __pycache__/
 从项目根目录启动：
 
 ```powershell
-python -m uvicorn backend.app:app --reload
+python -m uvicorn backend.app.main:app --reload
 ```
 
 - [ ] 服务启动成功。
-- [ ] 能解释 `backend.app:app` 分别指什么。
+- [ ] 能解释 `backend.app.main:app` 分别指什么。
 - [ ] 能讲清楚「请求 → FastAPI → Planner → LLM → 校验 → 响应」的流程。
 
 #### 6. 手动验证接口（20～30 分钟）
@@ -226,6 +241,17 @@ GitHub 仓库可以在本地验收通过后创建并推送；本地提交和 Git
 - [ ] 用固定输入比较不同每日时间下的任务量，检查计划是否可执行。
 - [ ] 设置请求超时，区分上游不可用、超时和输出格式错误。
 - [ ] 为关键校验与失败路径添加可重复测试，使用模拟响应避免测试依赖付费 API。
+
+#### Day 2 执行顺序（按当前项目文件）
+
+1. **先修正输入和输出契约。** 在 `backend/app/schemas.py` 中把 `duration_days` 限制为 1～30，拒绝只包含空格的 `goal`，并统一 `topic`/`topics` 的字段命名。保留日期从 1 开始且连续、主题非空、任务非空、`expected_output` 非空等规则；如果约定每天 2～4 个任务，也要写成模型约束。
+2. **整理配置读取。** 在 `backend/app/services/planner.py` 中先加载 `.env`，再读取 `LLM_MODEL`；检查 API Key、Base URL 和模型名缺失时返回明确的配置错误。`.env.example` 只能保留变量模板，不能放真实密钥。
+3. **稳定模型调用。** 保留客户端超时和关闭自动重试；按具体到一般的顺序区分超时、连接失败、认证/限流、其他上游状态错误。对空响应、非法 JSON、字段校验失败和返回天数不一致分别归入输出错误。不要把完整上游响应或凭证返回给客户端。
+4. **统一接口错误。** 在 `backend/app/main.py` 中删除重复导入，只捕获已定义的 Planner 异常，并映射为 500（配置）、502（上游或输出）、504（超时）；详细异常写入服务端日志，接口只返回稳定、简短的错误信息。
+5. **添加可重复测试。** 新建 `tests/test_schemas.py` 和 `tests/test_planner.py`；如需验证 HTTP 状态码，再添加 `tests/test_main.py`。用假的 client/response 模拟正常 JSON、少一天、多一天、重复编号、非法 JSON、空内容和超时，不调用真实模型。测试依赖补入 `requirements.txt`。
+6. **做固定输入比较。** 对同一个学习目标分别使用每天 15、60、120 分钟，记录任务数量、任务具体程度、工作量是否随时间增加，以及是否仍返回正确天数。把结果写入本文件的 Day 2 复盘。
+
+Day 2 完成前不要进入 SQLite。完成后应能证明：正常响应稳定可解析；0 天、31 天、空白目标会被拒绝；日期重复或跳号会失败；非法 JSON 和模拟超时会得到预期错误；服务端日志足以定位问题但不泄露密钥。
 
 **验收：** 正常输出可解析；天数错误、重复编号、非法 JSON 和模拟超时得到预期处理；服务端日志便于排错。
 
@@ -419,3 +445,20 @@ GitHub 仓库可以在本地验收通过后创建并推送；本地提交和 Git
 ## 实际学习记录
 
 <!-- 从这里追加每日复盘。 -->
+
+### Day 2 复盘（实际日期：2026-10-12）
+
+- 今日完成：
+  - 完善 schemas 中 PlanRequest、StudyDay、StudyPlan 的校验。
+  - 编写 main、schemas、planner 的测试。
+  - 覆盖合法输入、非法输入、非法 JSON、天数不一致和超时场景。
+  -完成固定输入比较
+- 验收结果：
+  - 测试全部通过。
+  - 测试不依赖真实 LLM API。
+- 我能解释的知识点：
+  - FastAPI TestClient 如何模拟接口请求。
+  - SimpleNamespace 如何构造轻量 mock 响应。
+  - pytest 参数化、异常断言和 monkeypatch 的使用。
+- 下次第一步：
+  - 设计 SQLite 中的计划、天数和任务表。

@@ -3,17 +3,22 @@ from typing import Optional, List
 
 class PlanRequest(BaseModel):
     goal: str = Field(min_length=2)
-    duration_days: int = Field(ge=0, le=30)
+    duration_days: int = Field(ge=1, le=30)
     daily_minutes: int = Field(ge=15, le=720)
     background: str = ""
-
+    @field_validator("goal")
+    @classmethod
+    def goal_must_not_be_empty(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Goal must not be empty.")
+        return value
 class StudyDay(BaseModel):
     day: int = Field(ge=1)
-    topics: str
+    topic: str
     tasks: List[str] = Field(min_length=1)
     expected_output: str
 
-    @field_validator("topics","expected_output")
+    @field_validator("topic","expected_output")
     @classmethod
     def must_not_be_empty(cls, value: str) -> str:
         if not value.strip():
