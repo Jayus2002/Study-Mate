@@ -1,0 +1,60 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.Python
+
+# Packaging and build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.egg
+
+# Test, coverage, and type-checking artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.mypy_cache/
+.pytype/
+.ruff_cache/
+.hypothesis/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Streamlit local configuration
+.streamlit/secrets.toml
+
+# Local databases and generated data
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE/editor settings
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*.swo
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and local runtime files
+*.log
+*.pid
