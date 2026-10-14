@@ -84,3 +84,7 @@ def test_timeout_error(monkeypatch):
     client = FakeClient(error=FakeTimeoutError())
     with pytest.raises(PlannerTimeoutError):
         generate_plan(make_request(), client=client)
+def test_get_plan_404(client):
+    response = client.get("/plans/999999")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "学习计划未找到。"}

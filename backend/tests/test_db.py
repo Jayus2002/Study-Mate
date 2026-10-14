@@ -1,14 +1,8 @@
+import pytest
 from backend.app.schemas import StudyDay, StudyPlan
-from test_planner import make_plan_json
-from backend.app.services.progress import save_plan, get_saved_plan
-from fastapi.testclient import TestClient
-def test_save_plan_creates_tasks():
-    # 构造假的 StudyPlan
-    # 使用测试数据库
-    # 调用 save_plan()
-    # 检查计划数量和任务数量
-    pass
-
+from sqlmodel import select, Session
+from backend.app.services.progress import save_plan, get_saved_plan,PlanPersistenceError
+from backend.app.db.models import Plan
 
 def mark_plan():
     return StudyPlan(
@@ -46,3 +40,16 @@ def test_get_saved_plan(session):
 def test_get_missing_plan_returns_none(session):
     result = get_saved_plan(999999, session)
     assert result is None
+
+def test_save_plan_rollback_on_partial_plan(session, test_engine, monkeypatch):
+    """提交失败时回滚"""
+    def broken_commit():
+        # 模拟在保存计划时抛出异常
+        raise  RuntimeError("模拟数据库提交失败")
+    monkeypatch.setattr(session, "commit", broken_commit)
+    with pytest.raises(PlanPersistenceError):
+        save_plan(mark_plan(), session)
+    with Session(test_engine) as new_session:
+        # 检查数据库中是否没有保存任何计划
+        result = new_session.exec(select(Plan)).all()
+        assert len(result) == 0

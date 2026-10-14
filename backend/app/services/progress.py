@@ -25,7 +25,7 @@ def save_plan(plan_data: StudyPlan, session: Session):
     try:
         session.add(db_plan)
         session.flush()  # Ensure the plan is saved and has an ID
-        print(db_plan.id)
+        # print(db_plan.id)
         for study_day in plan_data.days:
             for order, description in enumerate(study_day.tasks, start=1):
                 db_task = Task(
