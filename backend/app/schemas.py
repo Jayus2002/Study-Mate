@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from typing import Optional, List
-
+from datetime import datetime
 class PlanRequest(BaseModel):
     goal: str = Field(min_length=2)
     duration_days: int = Field(ge=1, le=30)
@@ -44,3 +44,20 @@ class StudyPlan(BaseModel):
         if numbers != expected_numbers:
             raise ValueError(f"Day numbers must be sequential starting from 1. Found: {numbers}")
         return self
+
+class SavedTask(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    day: int
+    topic: str
+    task_order: int
+    description: str
+    expected_output: str
+    status: str
+
+class SavedPlan(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    title: str
+    summary: str
+    created_at: datetime
+    tasks: List[SavedTask] = []

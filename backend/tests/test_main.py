@@ -12,7 +12,7 @@ def request_body():
         "goal": "学习 Python",
         "duration_days": 3,
         "daily_minutes": 60,
-        "background": "了解变量",
+        "background": "了解变量"
     }
 
 def test_timeout_map_to_504(monkeypatch):
